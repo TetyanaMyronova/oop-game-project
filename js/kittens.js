@@ -12,10 +12,32 @@ var PLAYER_HEIGHT = 54;
 // These two constants keep us from using "magic numbers" in our code
 var LEFT_ARROW_CODE = 37;
 var RIGHT_ARROW_CODE = 39;
+var SPACE_CODE = 32;
 
 // These two constants allow us to DRY
 var MOVE_LEFT = 'left';
 var MOVE_RIGHT = 'right';
+var RESTART = 'space';
+
+var mySound;
+var lives = 3;
+
+function sound(src) {
+    this.sound = document.createElement("audio");
+    this.sound.src = src;
+    this.sound.setAttribute("preload", "auto");
+    this.sound.setAttribute("controls", "none");
+    this.sound.style.display = "none";
+    document.body.appendChild(this.sound);
+    this.play = function(){
+        this.sound.play();
+    }
+    this.stop = function(){
+        this.sound.pause();
+    }
+}
+
+mySound = new sound("tetris_1.mp3");
 
 // Preload game images
 var images = {};
@@ -26,12 +48,16 @@ var images = {};
 });
 
 
-
-
+class Entity {
+    render(ctx) {
+        ctx.drawImage(this.sprite, this.x, this.y);
+    }
+}
 
 // This section is where you will be doing most of your coding
-class Enemy {
+class Enemy extends Entity {
     constructor(xPos) {
+        super();
         this.x = xPos;
         this.y = -ENEMY_HEIGHT;
         this.sprite = images['enemy.png'];
@@ -44,13 +70,14 @@ class Enemy {
         this.y = this.y + timeDiff * this.speed;
     }
 
-    render(ctx) {
-        ctx.drawImage(this.sprite, this.x, this.y);
-    }
+    // render(ctx) {
+    //     ctx.drawImage(this.sprite, this.x, this.y);
+    // }
 }
 
-class Player {
+class Player extends Entity {
     constructor() {
+        super();
         this.x = 2 * PLAYER_WIDTH;
         this.y = GAME_HEIGHT - PLAYER_HEIGHT - 10;
         this.sprite = images['player.png'];
@@ -64,11 +91,14 @@ class Player {
         else if (direction === MOVE_RIGHT && this.x < GAME_WIDTH - PLAYER_WIDTH) {
             this.x = this.x + PLAYER_WIDTH;
         }
+        // else if (direction === RESTART) {
+        //     gameEngine.gameLoop;
+        // }
     }
-
-    render(ctx) {
-        ctx.drawImage(this.sprite, this.x, this.y);
-    }
+// moved to extended class Entity
+    // render(ctx) {
+    //     ctx.drawImage(this.sprite, this.x, this.y);
+    // }
 }
 
 
@@ -88,6 +118,7 @@ class Engine {
         // Setup enemies, making sure there are always three
         this.setupEnemies();
 
+        this.playerDead = false;
         // Setup the <canvas> element where we will be drawing
         var canvas = document.createElement('canvas');
         canvas.width = GAME_WIDTH;
@@ -117,13 +148,11 @@ class Engine {
     // This method finds a random spot where there is no enemy, and puts one in there
     addEnemy() {
         var enemySpots = GAME_WIDTH / ENEMY_WIDTH;
-
         var enemySpot;
         // Keep looping until we find a free enemy spot at random
-        while (!enemySpot || this.enemies[enemySpot]) {
+        while (enemySpot === undefined || this.enemies[enemySpot]) {       //while (!enemySpot || this.enemies[enemySpot]) { initially the statement EnemySpot will be always undefined and = true
             enemySpot = Math.floor(Math.random() * enemySpots);
         }
-
         this.enemies[enemySpot] = new Enemy(enemySpot * ENEMY_WIDTH);
     }
 
@@ -131,7 +160,6 @@ class Engine {
     start() {
         this.score = 0;
         this.lastFrame = Date.now();
-
         // Listen for keyboard left/right and update the player
         document.addEventListener('keydown', e => {
             if (e.keyCode === LEFT_ARROW_CODE) {
@@ -140,9 +168,18 @@ class Engine {
             else if (e.keyCode === RIGHT_ARROW_CODE) {
                 this.player.move(MOVE_RIGHT);
             }
+            else if (e.keyCode === SPACE_CODE && this.isPlayerDead()) {
+                console.log('space and dead')
+                // this.player.move(RESTART)
+                    // this.gameLoop();
+            this.newGame();
+
+        }
         });
 
         this.gameLoop();
+
+        mySound.play();
     }
 
     /*
@@ -157,6 +194,7 @@ class Engine {
      */
     gameLoop() {
         // Check how long it's been since last frame
+        mySound.play();
         var currentFrame = Date.now();
         var timeDiff = currentFrame - this.lastFrame;
 
@@ -181,16 +219,28 @@ class Engine {
 
         // Check if player is dead
         if (this.isPlayerDead()) {
-            // If they are dead, then it's game over!
-            this.ctx.font = 'bold 30px Impact';
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.fillText(this.score + ' GAME OVER', 5, 30);
+            // If they are dead, then it's game over!if
+                this.ctx.font = '30px Impact';
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillText(this.score, 5, 30);
+                this.ctx.fillText(' GAME OVER', 235, 30);
+                this.ctx.fillText('Hit SPACE - to continue', 45, 250);
+                mySound.stop();
+
+                // while (lives > 0) {
+                //     this.gameLoop();
+                //     lives = lives -1;
+                //     console.log(lives);
+                // }
+
         }
         else {
             // If player is not dead, then draw the score
             this.ctx.font = 'bold 30px Impact';
-            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fillStyle = '#33A8FF';
             this.ctx.fillText(this.score, 5, 30);
+            this.ctx.fillText("Lives: " + lives, 270, 30);
+
 
             // Set the time marker and redraw
             this.lastFrame = Date.now();
@@ -198,14 +248,24 @@ class Engine {
         }
     }
 
+    newGame(){
+            lives = lives -1;
+            console.log("Restart and remove a life: ", lives)
+            this.gameLoop();
+    }
     isPlayerDead() {
-        // TODO: fix this function!
+        for (var i in this.enemies) {
+            if ((this.player.x < this.enemies[i].x + ENEMY_WIDTH) && (this.player.x + PLAYER_WIDTH > this.enemies[i].x)
+                && (this.player.y < this.enemies[i].y + ENEMY_HEIGHT) && (this.player.y + PLAYER_HEIGHT > this.enemies[i].y))
+            {
+                this.playerDead = true;
+                // delete this.enemies[i];
+                return true;
+            }
+        }
         return false;
     }
 }
-
-
-
 
 
 // This section will start the game
