@@ -13,11 +13,13 @@ var PLAYER_HEIGHT = 54;
 var LEFT_ARROW_CODE = 37;
 var RIGHT_ARROW_CODE = 39;
 var SPACE_CODE = 32;
+var ENTER_CODE = 13;
 
 // These two constants allow us to DRY
 var MOVE_LEFT = 'left';
 var MOVE_RIGHT = 'right';
 var RESTART = 'space';
+var NEW_GAME = 'enter';
 
 var mySound;
 var lives = 3;
@@ -169,12 +171,16 @@ class Engine {
                 this.player.move(MOVE_RIGHT);
             }
             else if (e.keyCode === SPACE_CODE && this.isPlayerDead()) {
-                console.log('space and dead')
-                // this.player.move(RESTART)
-                    // this.gameLoop();
-            this.newGame();
+                 this.player.move(RESTART)
+                    this.newGame();
 
-        }
+            }
+            else if (e.keyCode === ENTER_CODE && lives<=1) {
+
+                this.newGame("dead");
+
+
+            }
         });
 
         this.gameLoop();
@@ -223,16 +229,15 @@ class Engine {
                 this.ctx.font = '30px Impact';
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.fillText(this.score, 5, 30);
-                this.ctx.fillText(' GAME OVER', 235, 30);
-                this.ctx.fillText('Hit SPACE - to continue', 45, 250);
+                console.log(lives);
+                if (lives <= 0) {
+                    this.ctx.fillText(' GAME OVER', 235, 30);
+                    this.ctx.fillText('Press ENTER to',100, 210);
+                    this.ctx.fillText('START the game', 85, 240);
+                } else {
+                    this.ctx.fillText('Press SPACE - to continue', 45, 250);
+                }
                 mySound.stop();
-
-                // while (lives > 0) {
-                //     this.gameLoop();
-                //     lives = lives -1;
-                //     console.log(lives);
-                // }
-
         }
         else {
             // If player is not dead, then draw the score
@@ -248,21 +253,40 @@ class Engine {
         }
     }
 
-    newGame(){
-            lives = lives -1;
+    newGame(status) {
+        if (status === "dead") {
+            console.log("dead")
+            this.player = new Player();
+            lives = 3;
+            this.score = 0;
+
+        }
+        else {
+
+            lives = lives - 1;
             console.log("Restart and remove a life: ", lives)
+
+        }
+        this.enemies = [];
+        if (lives >= 0) {
             this.gameLoop();
+        }
+
     }
+
     isPlayerDead() {
         for (var i in this.enemies) {
             if ((this.player.x < this.enemies[i].x + ENEMY_WIDTH) && (this.player.x + PLAYER_WIDTH > this.enemies[i].x)
                 && (this.player.y < this.enemies[i].y + ENEMY_HEIGHT) && (this.player.y + PLAYER_HEIGHT > this.enemies[i].y))
             {
-                this.playerDead = true;
+                //this.playerDead = true;
                 // delete this.enemies[i];
+                //if (lives === 0){return true;}
                 return true;
+
             }
         }
+        //lives = lives - 1;
         return false;
     }
 }
